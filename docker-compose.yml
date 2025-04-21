@@ -1,0 +1,200 @@
+version: '3.8'
+
+services:
+  # Inventory Service
+  inventory-mongo:
+    image: mongo:latest
+    container_name: mongodb-inventory
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: MongoDB2025!
+      MONGO_INITDB_DATABASE: inventory-service
+    ports:
+      - "27017:27017"
+    volumes:
+      - inventory-mongo-volume:/data/db
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - inventory-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 256M
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  mongo-express-inventory:
+    image: mongo-express:latest
+    container_name: mongo-express-inventory
+    depends_on:
+      - inventory-mongo
+    restart: always
+    ports:
+      - "8101:8081"
+    environment:
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: MongoExpress2025!
+      ME_CONFIG_MONGODB_PORT: 27017
+      ME_CONFIG_MONGODB_ADMINUSERNAME: root
+      ME_CONFIG_MONGODB_ADMINPASSWORD: MongoDB2025!
+      ME_CONFIG_MONGODB_SERVER: mongodb-inventory
+      ME_CONFIG_MONGODB_ENABLE_ADMIN: "true"
+      ME_CONFIG_OPTIONS_EDITORTHEME: "dracula"
+    networks:
+      - inventory-network
+
+  mongo-express-product:
+    image: mongo-express:latest
+    container_name: mongo-express-product
+    depends_on:
+      - product-mongo
+    restart: always
+    ports:
+      - "8102:8081"
+    environment:
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: MongoExpress2025!
+      ME_CONFIG_MONGODB_PORT: 27017
+      ME_CONFIG_MONGODB_ADMINUSERNAME: root
+      ME_CONFIG_MONGODB_ADMINPASSWORD: MongoDB2025!
+      ME_CONFIG_MONGODB_SERVER: mongodb-product
+      ME_CONFIG_MONGODB_ENABLE_ADMIN: "true"
+      ME_CONFIG_OPTIONS_EDITORTHEME: "dracula"
+    networks:
+      - product-network
+
+  mongo-express-customer:
+    image: mongo-express:latest
+    container_name: mongo-express-customer
+    depends_on:
+      - customer-mongo
+    restart: always
+    ports:
+      - "8103:8081"
+    environment:
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: MongoExpress2025!
+      ME_CONFIG_MONGODB_PORT: 27017
+      ME_CONFIG_MONGODB_ADMINUSERNAME: root
+      ME_CONFIG_MONGODB_ADMINPASSWORD: MongoDB2025!
+      ME_CONFIG_MONGODB_SERVER: mongodb-customer
+      ME_CONFIG_MONGODB_ENABLE_ADMIN: "true"
+      ME_CONFIG_OPTIONS_EDITORTHEME: "dracula"
+    networks:
+      - customer-network
+
+  # Product Service
+  product-mongo:
+    image: mongo:latest
+    container_name: mongodb-product
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: MongoDB2025!
+      MONGO_INITDB_DATABASE: product-service
+    ports:
+      - "27018:27017"
+    volumes:
+      - product-mongo-volume:/data/db
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - product-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 256M
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  # Customer Service
+
+  customer-mongo:
+    image: mongo:latest
+    container_name: mongodb-customer
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: MongoDB2025!
+      MONGO_INITDB_DATABASE: customer-service
+    ports:
+      - "27019:27017"
+    volumes:
+      - customer-mongo-volume:/data/db
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - customer-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 256M
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  # Shared Kafka Services
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - kafka-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_LISTENERS: INSIDE://0.0.0.0:9092,OUTSIDE://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: INSIDE://kafka:9092,OUTSIDE://localhost:29092
+      KAFKA_INTER_BROKER_LISTENER_NAME: INSIDE
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    depends_on:
+      - zookeeper
+    networks:
+      - kafka-network
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    ports:
+      - "8084:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local-kafka
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    depends_on:
+      - kafka
+    networks:
+      - kafka-network
+
+volumes:
+  inventory-mongo-volume:
+  product-mongo-volume:
+  customer-mongo-volume:
+
+networks:
+  inventory-network:
+  product-network:
+  customer-network:
+  kafka-network:
