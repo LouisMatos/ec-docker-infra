@@ -1,6 +1,6 @@
 services:
   mongodb:
-    image: mongo:7.0-alpine
+    image: mongo:latest
     container_name: mongodb
     restart: always
     environment:
