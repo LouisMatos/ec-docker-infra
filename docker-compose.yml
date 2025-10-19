@@ -21,7 +21,7 @@ services:
       start_period: 40s
     networks:
       - mongo-network
-    platform: linux/arm64
+#    platform: linux/arm64
     deploy:
       resources:
         limits:
